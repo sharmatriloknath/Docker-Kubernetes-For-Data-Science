@@ -1,9 +1,9 @@
-## Kubernetes
+# Kubernetes
 - It is an container management tool developed by google.
 - It is an orchestration tool used to manage containers in cluster.
 
 
-### Namespaces
+# 1. Namespaces
 - It is a mechanism used to isolate the group of resoures in a single cluster.
 - Namespace-based scoping is applicable only for namespaced objects (e.g. Deployments, Services, etc) and not for cluster-wide objects (e.g. StorageClass, Nodes, PersistentVolumes, etc).
 
@@ -169,4 +169,183 @@ spec:
 
 # Run This command
 kubectl apply -f count_objs.yaml -n <namespace-name>
+```
+
+
+# 2. ConfigMaps
+- It is a way to keep configuration settings seperate from the code.
+- It is different for each environment.
+- We can set and get the values from configmaps.
+
+![configmap](https://matthewpalmer.net/kubernetes-app-developer/articles/configmap-diagram.gif)
+
+- We can easily link these configmaps with the pods.
+- For more details https://kubernetes.io/docs/concepts/configuration/configmap/ 
+
+- It is generally used to store the non-crediential information like DATABASE_URI, DATABASE_NAME etc.
+- Reference https://matthewpalmer.net/kubernetes-app-developer/articles/ultimate-configmap-guide-kubernetes.html
+
+### How to create configmap file
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-demo
+data:
+  # property-like keys; each key maps to a simple value
+  player_initial_lives: "3"
+  ui_properties_file_name: "user-interface.properties"
+
+  # file-like keys
+  game.properties: |
+    enemy.types=aliens,monsters
+    player.maximum-lives=5    
+  user-interface.properties: |
+    color.good=purple
+    color.bad=yellow
+    allow.textmode=true  
+```
+
+### How to Use Configmap
+
+```yaml
+apiVersion: v1
+
+kind: Pod
+
+metadata:
+
+  name: configmap-demo-pod
+
+spec:
+
+  containers:
+
+    - name: demo
+
+      image: alpine
+
+      command: ["sleep", "3600"]
+
+      env:
+
+        # Define the environment variable
+
+        - name: PLAYER_INITIAL_LIVES # Notice that the case is different here
+
+                                     # from the key name in the ConfigMap.
+
+          valueFrom:
+
+            configMapKeyRef:
+
+              name: game-demo           # The ConfigMap this value comes from.
+
+              key: player_initial_lives # The key to fetch.
+
+        - name: UI_PROPERTIES_FILE_NAME
+
+          valueFrom:
+
+            configMapKeyRef:
+
+              name: game-demo
+
+              key: ui_properties_file_name
+
+      volumeMounts:
+
+      - name: config
+
+        mountPath: "/config"
+
+        readOnly: true
+
+  volumes:
+
+  # You set volumes at the Pod level, then mount them into containers inside that Pod
+
+  - name: config
+
+    configMap:
+
+      # Provide the name of the ConfigMap you want to mount.
+
+      name: game-demo
+
+      # An array of keys from the ConfigMap to create as files
+
+      items:
+
+      - key: "game.properties"
+
+        path: "game.properties"
+
+      - key: "user-interface.properties"
+
+        path: "user-interface.properties"
+
+        
+```
+
+#### How to check Configmaps
+`kubectl get configmaps game-demo -o yaml`
+`kubectl describe configmaps game-demo`
+
+
+# 3. Secrets
+- Used to Store confidential information.
+- It an encripted form of confidential data.
+- we can store like `app_key`,`app_secret`,`password` etc.
+- For More details https://kubernetes.io/docs/concepts/configuration/secret/
+
+```yaml
+# mysecrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysecret
+type: Opaque
+data:
+  username: YWRtaW4=
+  password: MWYyZDFlMmU2N2Rm
+
+```
+### How to create and check Secrets
+
+```cmd
+kubectl apply -f mysecrets.yaml
+kubectl get secrets
+kubectl get secrets mysecret
+```
+
+### Use Secrets as env Variables in Pods
+1. As Environment Variables
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-env-pod
+spec:
+  containers:
+  - name: mycontainer
+    image: redis
+    env:
+      - name: SECRET_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: mysecret
+            key: username
+            optional: false # same as default; "mysecret" must exist
+                            # and include a key named "username"
+      - name: SECRET_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: mysecret
+            key: password
+            optional: false # same as default; "mysecret" must exist
+                            # and include a key named "password"
+  restartPolicy: Never
 ```
