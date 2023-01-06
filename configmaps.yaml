@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pods-config
+data:
+  # property-like keys; each key maps to a simple value
+  data_source: "ipl-data"
+  data_url: "ipl-data-url"
